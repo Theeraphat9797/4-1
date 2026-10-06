@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-<<<<<<< HEAD
 import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_options.dart';
@@ -12,9 +11,6 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-=======
-import 'post/screens/create_post_screen.dart'; // import หน้าฟอร์มโพสต์
->>>>>>> origin/main
 
   runApp(const MyApp());
 }
@@ -25,32 +21,20 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-<<<<<<< HEAD
       debugShowCheckedModeBanner: false,
-      title: 'Lost & Found',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-        ),
-      ),
-
-      // เริ่มต้นที่หน้า Login
-      home: const LoginScreen(),
-=======
       title: 'Lost and Found',
-      debugShowCheckedModeBanner: false,
+
       theme: ThemeData(
         useMaterial3: true,
-        // คุมโทนสีหลักเป็น Indigo ให้อารมณ์ทันสมัย สะอาดตา
+
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF6C5CE7),
           primary: const Color(0xFF6C5CE7),
           surface: const Color(0xFFF8F9FA),
         ),
+
         scaffoldBackgroundColor: const Color(0xFFF8F9FA),
 
-        // ตกแต่ง AppBar ให้คลีน ไม่มีเงา
         appBarTheme: const AppBarTheme(
           centerTitle: true,
           elevation: 0,
@@ -62,7 +46,6 @@ class MyApp extends StatelessWidget {
           ),
         ),
 
-        // ปรับดีไซน์ช่องกรอกข้อมูล (TextField) ทั้งแอปให้มนและสบายตา
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.white,
@@ -72,19 +55,25 @@ class MyApp extends StatelessWidget {
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+            borderSide: const BorderSide(
+              color: Color(0xFFE0E0E0),
+            ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+            borderSide: const BorderSide(
+              color: Color(0xFFE0E0E0),
+            ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF6C5CE7), width: 1.5),
+            borderSide: const BorderSide(
+              color: Color(0xFF6C5CE7),
+              width: 1.5,
+            ),
           ),
         ),
 
-        // ปรับดีไซน์ปุ่มกดหลัก (ElevatedButton) ให้เต็มความกว้างและมุมมน
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF6C5CE7),
@@ -101,8 +90,9 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const CreatePostScreen(),
->>>>>>> origin/main
+
+      // ให้เริ่มที่ Login เพราะระบบ Auth ของคุณต้องทำงานก่อน
+      home: const LoginScreen(),
     );
   }
 }
