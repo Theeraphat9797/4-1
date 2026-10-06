@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+<<<<<<< .merge_file_w59x1D
+import 'package:flutter_application_4minus1/features/feed/presentation/pages/feed_page.dart';
+=======
 import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_options.dart';
@@ -11,6 +14,7 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+>>>>>>> .merge_file_PCTFq5
 
   runApp(const MyApp());
 }
@@ -90,9 +94,13 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
+<<<<<<< .merge_file_w59x1D
+      home: const FeedPage(),
+=======
 
       // ให้เริ่มที่ Login เพราะระบบ Auth ของคุณต้องทำงานก่อน
       home: const LoginScreen(),
+>>>>>>> .merge_file_PCTFq5
     );
   }
 }
