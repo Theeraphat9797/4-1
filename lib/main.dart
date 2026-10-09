@@ -1,22 +1,26 @@
-import 'package:flutter/material.dart';
-<<<<<<< .merge_file_w59x1D
-import 'package:flutter_application_4minus1/features/feed/presentation/pages/feed_page.dart';
-=======
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import 'features/feed/logic/feed_provider.dart';
+import 'features/feed/presentation/pages/feed_page.dart';
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // เริ่มต้น Firebase
+  // เริ่มต้นใช้งาน Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
->>>>>>> .merge_file_PCTFq5
 
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => FeedProvider()..fetchItems(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -94,13 +98,9 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-<<<<<<< .merge_file_w59x1D
-      home: const FeedPage(),
-=======
 
-      // ให้เริ่มที่ Login เพราะระบบ Auth ของคุณต้องทำงานก่อน
+      // กำหนดให้เริ่มต้นที่หน้า LoginScreen
       home: const LoginScreen(),
->>>>>>> .merge_file_PCTFq5
     );
   }
 }

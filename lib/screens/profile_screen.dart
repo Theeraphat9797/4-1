@@ -24,7 +24,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-
     _loadProfile();
   }
 
@@ -39,18 +38,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (data != null) {
         setState(() {
-          _name = data['name'] ?? '-';
-          _email = data['email'] ?? '-';
+          _name = data['name'] ?? data['displayName'] ?? 'ผู้ใช้งาน';
+          _email = data['email'] ?? _authService.currentUser?.email ?? '-';
           _phone = data['phone'] ?? '-';
-
           _isLoading = false;
         });
       } else {
         setState(() {
-          _name = '-';
+          _name = _authService.currentUser?.displayName ?? 'ผู้ใช้งาน';
           _email = _authService.currentUser?.email ?? '-';
           _phone = '-';
-
           _isLoading = false;
         });
       }
@@ -58,6 +55,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
 
       setState(() {
+        _name = _authService.currentUser?.displayName ?? 'ผู้ใช้งาน';
+        _email = _authService.currentUser?.email ?? '-';
+        _phone = '-';
         _isLoading = false;
       });
 
@@ -107,14 +107,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('ออกจากระบบ'),
-          content: const Text(
-            'คุณต้องการออกจากระบบหรือไม่?',
-          ),
+          content: const Text('คุณต้องการออกจากระบบหรือไม่?'),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              onPressed: () => Navigator.pop(context),
               child: const Text('ยกเลิก'),
             ),
             ElevatedButton(
@@ -122,6 +118,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Navigator.pop(context);
                 _logout();
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
               child: const Text('ออกจากระบบ'),
             ),
           ],
@@ -136,77 +136,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: const Text(
           'โปรไฟล์',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
-
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
+          ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  // ==========================================
-                  // รูปโปรไฟล์
-                  // ==========================================
                   const CircleAvatar(
-                    radius: 65,
+                    radius: 60,
+                    backgroundColor: Colors.deepPurple,
                     child: Icon(
                       Icons.person,
                       size: 70,
+                      color: Colors.white,
                     ),
                   ),
-
-                  const SizedBox(height: 25),
-
-                  // ==========================================
-                  // ชื่อ
-                  // ==========================================
+                  const SizedBox(height: 20),
                   Text(
                     _name,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      fontSize: 24,
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
-                  const SizedBox(height: 8),
-
-                  // ==========================================
-                  // Email
-                  // ==========================================
+                  const SizedBox(height: 6),
                   Text(
                     _email,
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       color: Colors.grey,
                     ),
                   ),
-
-                  const SizedBox(height: 8),
-
-                  // ==========================================
-                  // เบอร์โทร
-                  // ==========================================
+                  const SizedBox(height: 4),
                   Text(
-                    _phone,
+                    'เบอร์โทร: $_phone',
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       color: Colors.grey,
                     ),
                   ),
-
-                  const SizedBox(height: 35),
-
-                  // ==========================================
-                  // แก้ไขโปรไฟล์
-                  // ==========================================
+                  const SizedBox(height: 30),
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -215,29 +189,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         await Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>
-                                const EditProfileScreen(),
+                            builder: (context) => const EditProfileScreen(),
                           ),
                         );
-
-                        // กลับจากหน้าแก้ไขแล้วโหลดข้อมูลใหม่
                         _loadProfile();
                       },
                       icon: const Icon(Icons.edit),
                       label: const Text(
                         'แก้ไขโปรไฟล์',
-                        style: TextStyle(
-                          fontSize: 17,
-                        ),
+                        style: TextStyle(fontSize: 16),
                       ),
                     ),
                   ),
-
-                  const SizedBox(height: 15),
-
-                  // ==========================================
-                  // โพสต์ของฉัน
-                  // ==========================================
+                  const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -246,37 +210,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>
-                                const MyPostsScreen(),
+                            builder: (context) => const MyPostsScreen(),
                           ),
                         );
                       },
                       icon: const Icon(Icons.article),
                       label: const Text(
                         'โพสต์ของฉัน',
-                        style: TextStyle(
-                          fontSize: 17,
-                        ),
+                        style: TextStyle(fontSize: 16),
                       ),
                     ),
                   ),
-
-                  const SizedBox(height: 15),
-
-                  // ==========================================
-                  // Logout
-                  // ==========================================
+                  const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: OutlinedButton.icon(
                       onPressed: _showLogoutDialog,
-                      icon: const Icon(Icons.logout),
+                      icon: const Icon(Icons.logout, color: Colors.red),
                       label: const Text(
                         'ออกจากระบบ',
-                        style: TextStyle(
-                          fontSize: 17,
-                        ),
+                        style: TextStyle(fontSize: 16, color: Colors.red),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.red),
                       ),
                     ),
                   ),

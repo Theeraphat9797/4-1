@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../data/models/item_model.dart';
+import '../../logic/feed_provider.dart';
+import '../../../../screens/profile_screen.dart';
+import '../../../../post/screens/create_post_screen.dart';
 import 'chat_page.dart';
+import 'post_detail_page.dart'; // 👈 นำเข้าไฟล์หน้ารายละเอียดโพสต์
 
 class FeedPage extends StatefulWidget {
   const FeedPage({super.key});
@@ -9,77 +16,39 @@ class FeedPage extends StatefulWidget {
 }
 
 class _FeedPageState extends State<FeedPage> {
-  String searchQuery = '';
-  String selectedCategory = 'ทั้งหมด';
-  String selectedStatus = 'ทั้งหมด';
-
   final TextEditingController _searchController = TextEditingController();
-  final Set<int> bookmarkedPostIds = {};
+  final Set<String> bookmarkedPostIds = {};
 
+  // 👈 แก้ไขหมวดหมู่ตรงนี้ให้ตรงกับหน้าสร้างโพสต์
   final List<String> categories = [
-    'ทั้งหมด',
-    'กระเป๋า/ของใช้',
-    'ไอที/อิเล็กทรอนิกส์',
-    'กุญแจ/บัตร',
-    'เอกสาร/หนังสือ',
+    'ทั่วไป',
+    'อุปกรณ์ไอที/อิเล็กทรอนิกส์',
+    'กระเป๋า/กระเป๋าสตางค์',
+    'เอกสาร/บัตรประจำตัว',
+    'กุญแจ',
+    'เสื้อผ้า/เครื่องแต่งกาย',
   ];
-
-  final List<Map<String, dynamic>> allPosts = [
-    {
-      'id': 1,
-      'title': 'กระเป๋าสตางค์หนังสีดำ หายแถวตึกเรียนรวม',
-      'type': 'lost',
-      'category': 'กระเป๋า/ของใช้',
-      'location': 'ตึก ECC, สจล.',
-      'time': '10 นาทีที่แล้ว',
-      'imageUrl': 'https://picsum.photos/400/200?random=1',
-      'isResolved': false,
-    },
-    {
-      'id': 2,
-      'title': 'พบพวงกุญแจโดราเอมอน ตกอยู่หน้าคาเฟ่',
-      'type': 'found',
-      'category': 'กุญแจ/บัตร',
-      'location': 'โรงกะทะ, สจล.',
-      'time': '1 ชั่วโมงที่แล้ว',
-      'imageUrl': 'https://picsum.photos/400/200?random=2',
-      'isResolved': true,
-    },
-    {
-      'id': 3,
-      'title': 'หูฟัง AirPods Pro พร้อมเคสสีเขียว',
-      'type': 'lost',
-      'category': 'ไอที/อิเล็กทรอนิกส์',
-      'location': 'สำนักหอสมุดกลาง',
-      'time': '3 ชั่วโมงที่แล้ว',
-      'imageUrl': 'https://picsum.photos/400/200?random=3',
-      'isResolved': false,
-    },
-  ];
+  
 
   @override
   Widget build(BuildContext context) {
-    final filteredPosts = allPosts.where((post) {
-      final title = post['title'].toString().toLowerCase();
-      final location = post['location'].toString().toLowerCase();
-      final query = searchQuery.toLowerCase();
-      final matchesSearch = title.contains(query) || location.contains(query);
-
-      final matchesCategory = selectedCategory == 'ทั้งหมด' ||
-          post['category'] == selectedCategory;
-
-      final matchesStatus = selectedStatus == 'ทั้งหมด' ||
-          (selectedStatus == 'ของหาย' && post['type'] == 'lost') ||
-          (selectedStatus == 'พบของ' && post['type'] == 'found');
-
-      return matchesSearch && matchesCategory && matchesStatus;
-    }).toList();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Lost & Found Feed', style: TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person_outline_rounded),
+            tooltip: 'โปรไฟล์ของฉัน',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ProfileScreen(),
+                ),
+              );
+            },
+          ),
           Stack(
             alignment: Alignment.center,
             children: [
@@ -108,271 +77,346 @@ class _FeedPageState extends State<FeedPage> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // 1. Search Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (value) => setState(() => searchQuery = value),
-              decoration: InputDecoration(
-                hintText: 'ค้นหาชื่อของ สถานที่ หรือคำสำคัญ...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => searchQuery = '');
-                        },
-                      )
-                    : null,
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.grey.shade200,
-              ),
-            ),
-          ),
+      body: Consumer<FeedProvider>(
+        builder: (context, feedProvider, child) {
+          final filteredPosts = feedProvider.filteredItems;
 
-          // 2. Choice Chips (สถานะ)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-            child: Row(
-              children: ['ทั้งหมด', 'ของหาย', 'พบของ'].map((status) {
-                final isSelected = selectedStatus == status;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: ChoiceChip(
-                    label: Text(status),
-                    selected: isSelected,
-                    selectedColor: Colors.deepPurple,
-                    labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (value) => feedProvider.setSearchQuery(value),
+                  decoration: InputDecoration(
+                    hintText: 'ค้นหาชื่อของ สถานที่ หรือคำสำคัญ...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: feedProvider.searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              feedProvider.setSearchQuery('');
+                            },
+                          )
+                        : null,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide.none,
                     ),
-                    onSelected: (_) => setState(() => selectedStatus = status),
+                    filled: true,
+                    fillColor: Colors.grey.shade200,
                   ),
-                );
-              }).toList(),
-            ),
-          ),
+                ),
+              ),
 
-          // 3. Filter Chips (หมวดหมู่)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-            child: Row(
-              children: categories.map((category) {
-                final isSelected = selectedCategory == category;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: FilterChip(
-                    label: Text(category),
-                    selected: isSelected,
-                    selectedColor: Colors.deepPurple.shade100,
-                    checkmarkColor: Colors.deepPurple,
-                    onSelected: (_) {
-                      setState(() {
-                        if (selectedCategory == category && category != 'ทั้งหมด') {
-                          selectedCategory = 'ทั้งหมด';
-                        } else {
-                          selectedCategory = category;
-                        }
-                      });
-                    },
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          // 4. Feed List
-          Expanded(
-            child: RefreshIndicator(
-              color: Colors.deepPurple,
-              onRefresh: () async {
-                await Future.delayed(const Duration(seconds: 1));
-                setState(() {});
-              },
-              child: filteredPosts.isEmpty
-                  ? SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      child: Container(
-                        height: MediaQuery.of(context).size.height * 0.4,
-                        alignment: Alignment.center,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.search_off_rounded, size: 72, color: Colors.grey.shade400),
-                            const SizedBox(height: 12),
-                            Text(
-                              'ไม่พบรายการที่คุณค้นหา',
-                              style: TextStyle(fontSize: 16, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
-                            ),
-                          ],
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                child: Row(
+                  children: ['ทั้งหมด', 'ของหาย', 'พบของ'].map((status) {
+                    final isSelected = feedProvider.selectedStatus == status;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: ChoiceChip(
+                        label: Text(status),
+                        selected: isSelected,
+                        selectedColor: Colors.deepPurple,
+                        labelStyle: TextStyle(
+                          color: isSelected ? Colors.white : Colors.black,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                         ),
+                        onSelected: (_) => feedProvider.setStatus(status),
                       ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                      itemCount: filteredPosts.length,
-                      itemBuilder: (context, index) {
-                        final post = filteredPosts[index];
-                        final isLost = post['type'] == 'lost';
-                        final isBookmarked = bookmarkedPostIds.contains(post['id']);
-                        final isResolved = post['isResolved'] ?? false;
+                    );
+                  }).toList(),
+                ),
+              ),
 
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 16.0),
-                          elevation: 3,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Stack(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                                    child: Image.network(
-                                      post['imageUrl'],
-                                      height: 180,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                    ),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                child: Row(
+                  children: categories.map((category) {
+                    final isSelected = feedProvider.selectedCategory == category;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: FilterChip(
+                        label: Text(category),
+                        selected: isSelected,
+                        selectedColor: Colors.deepPurple.shade100,
+                        checkmarkColor: Colors.deepPurple,
+                        onSelected: (_) {
+                          if (isSelected && category != 'ทั้งหมด') {
+                            feedProvider.setCategory('ทั้งหมด');
+                          } else {
+                            feedProvider.setCategory(category);
+                          }
+                        },
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              Expanded(
+                child: RefreshIndicator(
+                  color: Colors.deepPurple,
+                  onRefresh: () async {
+                    feedProvider.fetchItems();
+                  },
+                  child: filteredPosts.isEmpty
+                      ? SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: Container(
+                            height: MediaQuery.of(context).size.height * 0.4,
+                            alignment: Alignment.center,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.search_off_rounded, size: 72, color: Colors.grey.shade400),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'ไม่พบรายการที่คุณค้นหา',
+                                  style: TextStyle(fontSize: 16, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                          itemCount: filteredPosts.length,
+                          itemBuilder: (context, index) {
+                            final post = filteredPosts[index];
+                            final isLost = post.status == 'ของหาย' || post.status == 'LOST';
+                            final isBookmarked = bookmarkedPostIds.contains(post.id);
+                            final hasImage = post.imageUrl.isNotEmpty && !post.imageUrl.contains('picsum.photos');
+
+                            // 👈 เพิ่ม InkWell ครอบ Card เมื่อกดจะเปิดไปยังหน้ารายละเอียดและคอมเมนต์
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => PostDetailPage(post: post),
                                   ),
-                                  Positioned(
-                                    top: 12,
-                                    left: 12,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: isResolved
-                                            ? Colors.grey.shade700
-                                            : (isLost ? Colors.redAccent : Colors.green),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Text(
-                                        isResolved
-                                            ? 'ส่งคืนแล้ว'
-                                            : (isLost ? 'ของหาย' : 'พบของ'),
-                                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: 12,
-                                    right: 50,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.6),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Text(
-                                        post['category'],
-                                        style: const TextStyle(color: Colors.white, fontSize: 11),
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: 6,
-                                    right: 6,
-                                    child: CircleAvatar(
-                                      backgroundColor: Colors.white.withOpacity(0.85),
-                                      radius: 18,
-                                      child: IconButton(
-                                        padding: EdgeInsets.zero,
-                                        icon: Icon(
-                                          isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                                          color: isBookmarked ? Colors.deepPurple : Colors.grey.shade700,
-                                          size: 20,
-                                        ),
-                                        onPressed: () {
-                                          setState(() {
-                                            if (isBookmarked) {
-                                              bookmarkedPostIds.remove(post['id']);
-                                            } else {
-                                              bookmarkedPostIds.add(post['id']);
-                                            }
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(12.0),
+                                );
+                              },
+                              child: Card(
+                                margin: const EdgeInsets.only(bottom: 16.0),
+                                elevation: 3,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      post['title'],
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
-                                        const SizedBox(width: 4),
-                                        Text(post['location'], style: const TextStyle(color: Colors.grey, fontSize: 13)),
-                                        const Spacer(),
-                                        const Icon(Icons.access_time, size: 16, color: Colors.grey),
-                                        const SizedBox(width: 4),
-                                        Text(post['time'], style: const TextStyle(color: Colors.grey, fontSize: 13)),
-                                      ],
-                                    ),
-                                    const Divider(height: 20),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      children: [
-                                        OutlinedButton.icon(
-                                          onPressed: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) => ChatPage(
-                                                  postTitle: post['title'],
+                                    if (hasImage)
+                                      Stack(
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                            child: Image.network(
+                                              post.imageUrl,
+                                              height: 180,
+                                              width: double.infinity,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) {
+                                                return const SizedBox.shrink();
+                                              },
+                                            ),
+                                          ),
+                                          Positioned(
+                                            top: 12,
+                                            left: 12,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: post.isResolved
+                                                    ? Colors.grey.shade700
+                                                    : (isLost ? Colors.redAccent : Colors.green),
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                              child: Text(
+                                                post.isResolved ? 'ส่งคืนแล้ว' : (isLost ? 'ของหาย' : 'พบของ'),
+                                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                              ),
+                                            ),
+                                          ),
+                                          Positioned(
+                                            top: 12,
+                                            right: 50,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withOpacity(0.6),
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                              child: Text(
+                                                post.category,
+                                                style: const TextStyle(color: Colors.white, fontSize: 11),
+                                              ),
+                                            ),
+                                          ),
+                                          Positioned(
+                                            top: 6,
+                                            right: 6,
+                                            child: CircleAvatar(
+                                              backgroundColor: Colors.white.withOpacity(0.85),
+                                              radius: 18,
+                                              child: IconButton(
+                                                padding: EdgeInsets.zero,
+                                                icon: Icon(
+                                                  isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                                                  color: isBookmarked ? Colors.deepPurple : Colors.grey.shade700,
+                                                  size: 20,
+                                                ),
+                                                onPressed: () {
+                                                  setState(() {
+                                                    if (isBookmarked) {
+                                                      bookmarkedPostIds.remove(post.id);
+                                                    } else {
+                                                      bookmarkedPostIds.add(post.id);
+                                                    }
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    Padding(
+                                      padding: const EdgeInsets.all(12.0),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          if (!hasImage) ...[
+                                            Row(
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: post.isResolved
+                                                        ? Colors.grey.shade700
+                                                        : (isLost ? Colors.redAccent : Colors.green),
+                                                    borderRadius: BorderRadius.circular(20),
+                                                  ),
+                                                  child: Text(
+                                                    post.isResolved ? 'ส่งคืนแล้ว' : (isLost ? 'ของหาย' : 'พบของ'),
+                                                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.grey.shade300,
+                                                    borderRadius: BorderRadius.circular(20),
+                                                  ),
+                                                  child: Text(
+                                                    post.category,
+                                                    style: const TextStyle(color: Colors.black87, fontSize: 11),
+                                                  ),
+                                                ),
+                                                const Spacer(),
+                                                IconButton(
+                                                  icon: Icon(
+                                                    isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                                                    color: isBookmarked ? Colors.deepPurple : Colors.grey.shade700,
+                                                    size: 20,
+                                                  ),
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      if (isBookmarked) {
+                                                        bookmarkedPostIds.remove(post.id);
+                                                      } else {
+                                                        bookmarkedPostIds.add(post.id);
+                                                      }
+                                                    });
+                                                  },
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 8),
+                                          ],
+                                          Text(
+                                            post.title,
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                          ),
+                                          if (post.description.isNotEmpty) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              post.description,
+                                              style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+                                            ),
+                                          ],
+                                          const SizedBox(height: 8),
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
+                                              const SizedBox(width: 4),
+                                              Expanded(
+                                                child: Text(
+                                                  post.locationName,
+                                                  style: const TextStyle(color: Colors.grey, fontSize: 13),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
                                                 ),
                                               ),
-                                            );
-                                          },
-                                          icon: const Icon(Icons.chat_bubble_outline, size: 16),
-                                          label: const Text('ติดต่อเจ้าของ'),
-                                          style: OutlinedButton.styleFrom(
-                                            foregroundColor: Colors.deepPurple,
-                                            side: const BorderSide(color: Colors.deepPurple),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(20),
-                                            ),
-                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                                            ],
                                           ),
-                                        ),
-                                      ],
+                                          const Divider(height: 20),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.end,
+                                            children: [
+                                              OutlinedButton.icon(
+                                                onPressed: () {
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (context) => ChatPage(
+                                                        postTitle: post.title,
+                                                        postUserId: post.userId,
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                                icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                                                label: const Text('ติดต่อเจ้าของ'),
+                                                style: OutlinedButton.styleFrom(
+                                                  foregroundColor: Colors.deepPurple,
+                                                  side: const BorderSide(color: Colors.deepPurple),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(20),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ),
-        ],
+                            );
+                          },
+                        ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('กำลังเปิดหน้าสร้างโพสต์...')),
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CreatePostScreen(),
+            ),
           );
         },
         backgroundColor: Colors.deepPurple,

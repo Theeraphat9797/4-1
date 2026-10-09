@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../features/feed/logic/feed_provider.dart';
+import '../features/feed/presentation/pages/feed_page.dart';
 import '../services/auth_service.dart';
 import 'register_screen.dart';
-import 'profile_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -41,19 +43,22 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // Login ด้วย Firebase Authentication
+      // 1. Login ด้วย Firebase Authentication
       await _authService.login(
-        email: _emailController.text,
-        password: _passwordController.text,
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
       );
 
       if (!mounted) return;
 
-      // ไปหน้า Profile
+      // 2. สั่งให้ FeedProvider รีโหลดข้อมูลของ User คนใหม่ทันที
+      Provider.of<FeedProvider>(context, listen: false).fetchItems();
+
+      // 3. ล็อกอินสำเร็จ -> นำทางไปหน้า FeedPage (เอา const ออกเพื่อรองรับ Dynamic State)
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => const ProfileScreen(),
+          builder: (context) => const FeedPage(),
         ),
       );
     } catch (e) {

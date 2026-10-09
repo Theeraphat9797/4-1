@@ -1,9 +1,12 @@
-// # หน้าฟอร์มสร้างโพสต์หลัก
 import 'dart:typed_data';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import '../widgets/image_picker_widget.dart';
-import 'select_location_screen.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+
+import '../../features/feed/data/models/item_model.dart';
+import '../../features/feed/logic/feed_provider.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -14,13 +17,14 @@ class CreatePostScreen extends StatefulWidget {
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final _formKey = GlobalKey<FormState>();
+  final ImagePicker _picker = ImagePicker();
 
   String _title = '';
   String _description = '';
   String _category = 'ทั่วไป';
-  Uint8List? _postImage; // ประเภท Uint8List รองรับการรันบน Desktop/Web
-  String _postType = 'LOST'; // 'LOST' (ตามหาของ) หรือ 'FOUND' (แจ้งเจอของ)
-  LatLng? _selectedLocation; // เพิ่มตัวแปรเก็บพิกัดสถานที่ที่เลือก
+  Uint8List? _postImage;
+  String _postType = 'LOST';
+  LatLng? _selectedLocation;
 
   final List<String> _categories = [
     'ทั่วไป',
@@ -31,22 +35,134 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     'เสื้อผ้า/เครื่องแต่งกาย',
   ];
 
+  // 📷 ฟังก์ชันเลือกรูปภาพจากเครื่อง
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        final Uint8List imageBytes = await image.readAsBytes();
+        setState(() {
+          _postImage = imageBytes;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('เลือกรูปภาพไม่สำเร็จ: $e')),
+      );
+    }
+  }
+
+  // 📍 ฟังก์ชันเปิดหน้าต่างปักหมุดบนแผนที่ (ปรับปรุงแก้ไขการทำงาน)
+  Future<void> _pickLocationOnMap() async {
+    LatLng currentPin = _selectedLocation ?? const LatLng(13.7563, 100.5018); // พิกัดเริ่มต้น (กทม.)
+    GoogleMapController? mapController;
+
+    final LatLng? result = await showDialog<LatLng>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('แตะบนแผนที่เพื่อปักหมุด'),
+              contentPadding: const EdgeInsets.all(8),
+              content: SizedBox(
+                width: double.maxFinite,
+                height: 400,
+                child: GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: currentPin,
+                    zoom: 15,
+                  ),
+                  onMapCreated: (controller) {
+                    mapController = controller;
+                  },
+                  onTap: (LatLng location) {
+                    setDialogState(() {
+                      currentPin = location;
+                    });
+                    // เลื่อนกล้องไปยังตำแหน่งที่ปักหมุดใหม่
+                    mapController?.animateCamera(
+                      CameraUpdate.newLatLng(location),
+                    );
+                  },
+                  markers: {
+                    Marker(
+                      markerId: const MarkerId('selected_pin'),
+                      position: currentPin,
+                      draggable: true,
+                      onDragEnd: (newPosition) {
+                        setDialogState(() {
+                          currentPin = newPosition;
+                        });
+                      },
+                    ),
+                  },
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, null),
+                  child: const Text('ยกเลิก'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, currentPin),
+                  child: const Text('ตกลง'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result != null) {
+      setState(() {
+        _selectedLocation = result;
+      });
+    }
+  }
+
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
-      // ดึงค่ามาใช้งานเพื่อทดสอบ
-      debugPrint('ประเภท: $_postType');
-      debugPrint('ชื่อเรื่อง: $_title');
-      debugPrint('หมวดหมู่: $_category');
-      debugPrint('รายละเอียด: $_description');
-      debugPrint('มีรูปภาพแนบ: ${_postImage != null}');
-      debugPrint('พิกัดตำแหน่ง: $_selectedLocation');
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
-      // TODO: ส่งข้อมูลไปยัง Backend / Firebase หรือ State Management
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('กำลังบันทึกโพสต์: $_title')));
+      final newItem = ItemModel(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: _title,
+        description: _description,
+        category: _category,
+        status: _postType == 'LOST' ? 'ของหาย' : 'พบของ',
+        locationName: _selectedLocation != null
+            ? 'ละติจูด: ${_selectedLocation!.latitude.toStringAsFixed(4)}, ลองจิจูด: ${_selectedLocation!.longitude.toStringAsFixed(4)}'
+            : 'ไม่ระบุสถานที่',
+        imageUrl: _postImage != null
+            ? 'https://picsum.photos/400/200?random=${DateTime.now().second}'
+            : '',
+        createdAt: DateTime.now(),
+        userId: currentUserId,
+        isMine: true,
+        isResolved: false,
+      );
+
+      Provider.of<FeedProvider>(context, listen: false).addItem(newItem);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('ลงประกาศ "$_title" เรียบร้อยแล้ว'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Navigator.pop(context);
     }
   }
 
@@ -61,7 +177,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ประเภทประกาศ (ตามหาของ vs เจอของ)
               SegmentedButton<String>(
                 segments: const [
                   ButtonSegment(value: 'LOST', label: Text('ตามหาของหาย')),
@@ -76,17 +191,53 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               ),
               const SizedBox(height: 16),
 
-              // อัปโหลดรูปภาพ
-              ImagePickerWidget(
-                onImageSelected: (bytes, name) {
-                  setState(() {
-                    _postImage = bytes;
-                  });
-                },
+              // 📷 ส่วนกดเลือกรูปภาพ
+              GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  height: 150,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade400),
+                  ),
+                  child: _postImage != null
+                      ? Stack(
+                          alignment: Alignment.topRight,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.memory(
+                                _postImage!,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.cancel, color: Colors.red),
+                              onPressed: () {
+                                setState(() {
+                                  _postImage = null;
+                                });
+                              },
+                            ),
+                          ],
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.add_a_photo, size: 40, color: Colors.grey),
+                            SizedBox(height: 8),
+                            Text('กดเพื่อแนบรูปภาพสิ่งของ (ไม่บังคับ)',
+                                style: TextStyle(color: Colors.grey)),
+                          ],
+                        ),
+                ),
               ),
               const SizedBox(height: 16),
 
-              // ชื่อสิ่งของ
               TextFormField(
                 decoration: const InputDecoration(
                   labelText: 'ชื่อสิ่งของ *',
@@ -103,7 +254,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               ),
               const SizedBox(height: 16),
 
-              // เลือกหมวดหมู่
               DropdownButtonFormField<String>(
                 value: _category,
                 decoration: const InputDecoration(
@@ -119,7 +269,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               ),
               const SizedBox(height: 16),
 
-              // รายละเอียด
               TextFormField(
                 maxLines: 3,
                 decoration: const InputDecoration(
@@ -131,30 +280,16 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               ),
               const SizedBox(height: 16),
 
-              // ปุ่มปักหมุดสถานที่
+              // 📍 ปุ่มปักหมุดสถานที่
               OutlinedButton.icon(
-                onPressed: () async {
-                  // เปิดหน้า SelectLocationScreen และรอรับพิกัดกลับมา
-                  final LatLng? location = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SelectLocationScreen(),
-                    ),
-                  );
-
-                  if (location != null) {
-                    setState(() {
-                      _selectedLocation = location;
-                    });
-                  }
-                },
+                onPressed: _pickLocationOnMap,
                 icon: Icon(
                   Icons.location_on,
                   color: _selectedLocation != null ? Colors.green : Colors.red,
                 ),
                 label: Text(
                   _selectedLocation != null
-                      ? 'เลือกตำแหน่งแล้ว (${_selectedLocation!.latitude.toStringAsFixed(4)}, ${_selectedLocation!.longitude.toStringAsFixed(4)})'
+                      ? 'ปักหมุดแล้ว (${_selectedLocation!.latitude.toStringAsFixed(4)}, ${_selectedLocation!.longitude.toStringAsFixed(4)})'
                       : 'ระบุ/ปักหมุดสถานที่บนแผนที่',
                 ),
                 style: OutlinedButton.styleFrom(
@@ -163,7 +298,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               ),
               const SizedBox(height: 24),
 
-              // ปุ่มโพสต์
               ElevatedButton(
                 onPressed: _submitForm,
                 style: ElevatedButton.styleFrom(

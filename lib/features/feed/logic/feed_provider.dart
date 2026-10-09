@@ -1,9 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../data/models/item_model.dart';
-import '../data/repositories/feed_repository.dart';
 
 class FeedProvider extends ChangeNotifier {
-  final FeedRepository _repository = FeedRepository();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   List<ItemModel> _items = [];
   String _searchQuery = '';
@@ -16,8 +18,58 @@ class FeedProvider extends ChangeNotifier {
   String get selectedStatus => _selectedStatus;
 
   void fetchItems() {
-    _items = _repository.fetchItems();
-    notifyListeners();
+    final currentUserId = _auth.currentUser?.uid ?? '';
+
+    _firestore.collection('posts').snapshots().listen((snapshot) {
+      try {
+        final loadedItems = snapshot.docs.map((doc) {
+          final data = doc.data();
+          return ItemModel.fromMap(data, doc.id, currentUserId);
+        }).toList();
+
+        loadedItems.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+        _items = loadedItems;
+        notifyListeners();
+      } catch (e) {
+        debugPrint('Error mapping items: $e');
+      }
+    }, onError: (error) {
+      debugPrint('Firestore Listen Error: $error');
+    });
+  }
+
+  List<ItemModel> get myItems {
+    final currentUserId = _auth.currentUser?.uid ?? '';
+    if (currentUserId.isEmpty) return [];
+    return _items.where((item) => item.userId == currentUserId).toList();
+  }
+
+  // ➕ เพิ่มโพสต์
+  Future<void> addItem(ItemModel newItem) async {
+    final currentUserId = _auth.currentUser?.uid ?? '';
+    if (currentUserId.isEmpty) return;
+
+    final data = newItem.toMap(currentUserId);
+    data['createdAt'] = FieldValue.serverTimestamp();
+
+    await _firestore.collection('posts').add(data);
+  }
+
+  // ✏️ แก้ไขโพสต์ (เฉพาะเจ้าของ)
+  Future<void> updateItem(String docId, ItemModel updatedItem) async {
+    final currentUserId = _auth.currentUser?.uid ?? '';
+    if (currentUserId.isEmpty) return;
+
+    final data = updatedItem.toMap(currentUserId);
+    data.remove('createdAt'); // ไม่ทับเวลาสร้างเดิม
+
+    await _firestore.collection('posts').doc(docId).update(data);
+  }
+
+  // 🗑️ ลบโพสต์ (เฉพาะเจ้าของ)
+  Future<void> deleteItem(String docId) async {
+    await _firestore.collection('posts').doc(docId).delete();
   }
 
   void setSearchQuery(String query) {

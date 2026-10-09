@@ -1,28 +1,33 @@
 import '../models/item_model.dart';
 
 class FeedRepository {
-  // Mock Data สำหรับทดสอบก่อนดึง API จริง
-  List<ItemModel> fetchItems() {
+  List<ItemModel> getMockItems() {
     return [
       ItemModel(
         id: '1',
-        title: 'ลืม iPad Air สีสเปซเกรย์',
-        description: 'ลืมไว้ที่โรงอาหารกลาง อาคาร C',
-        category: 'ไอที/อิเล็กทรอนิกส์',
+        title: 'กระเป๋าสตางค์สีดำ',
+        description: 'ตกบริเวณโรงอาหารกลาง',
+        category: 'กระเป๋า/กระเป๋าสตางค์',
         locationName: 'โรงอาหารกลาง',
-        imageUrl: 'https://picsum.photos/200',
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-        status: 'LOST',
+        imageUrl: '',
+        createdAt: DateTime.now(),
+        status: 'ของหาย',
+        userId: 'mock_user_1',
+        isResolved: false,
+        isMine: false,
       ),
       ItemModel(
         id: '2',
-        title: 'เจอกระเป๋าสตางค์สีดำ',
-        description: 'พบบริเวณโต๊ะหินอ่อน คณะวิศวกรรมศาสตร์',
-        category: 'กระเป๋า/เป้',
-        locationName: 'คณะวิศวกรรมศาสตร์',
-        imageUrl: 'https://picsum.photos/201',
-        createdAt: DateTime.now().subtract(const Duration(hours: 5)),
-        status: 'FOUND',
+        title: 'กุญแจรถยนต์',
+        description: 'พบบริเวณลานจอดรถ',
+        category: 'กุญแจ',
+        locationName: 'ลานจอดรถ A',
+        imageUrl: '',
+        createdAt: DateTime.now(),
+        status: 'พบของ',
+        userId: 'mock_user_2',
+        isResolved: false,
+        isMine: false,
       ),
     ];
   }
